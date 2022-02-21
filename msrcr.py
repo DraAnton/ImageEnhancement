@@ -90,7 +90,7 @@ class MSRCR():
         between1_=np.fft.ifft2(grid * fourier_channel).real 
         Rr += (log_channel-np.log(between1_))/len(precalculated_grids)
 
-      ColorRestauration = np.log(np.divide(np.clip(Image_channel, 1, 255),1/mult(*Shape3D) * colour_corr_prematrix))#/np.log(np.ones(Shape2D)*40)
+      ColorRestauration = np.log(np.divide(np.clip(Image_channel, 1, 255),1/mult__(*Shape3D) * colour_corr_prematrix))#/np.log(np.ones(Shape2D)*40)
       RrCr = ColorRestauration * Rr
     
       min1Cr = np.mean(RrCr) - np.std(RrCr) * dynamic
