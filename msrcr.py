@@ -9,9 +9,10 @@ def mult__(*args):
 
 
 class MSRCR():
-  def __init__(self, sigmas: tuple = (30, 60, 120)):
+  def __init__(self, sigmas: tuple = (30, 60, 120), dynamic = 2):
     self.sigmas = sigmas 
     self.grids = {}
+    self.dynamic = dynamic
   
   def __calc_grids(self, this_shape: tuple ):
     assert len(this_shape) == 2
@@ -93,8 +94,8 @@ class MSRCR():
       ColorRestauration = np.log(np.divide(np.clip(Image_channel, 1, 255),1/mult__(*Shape3D) * colour_corr_prematrix))#/np.log(np.ones(Shape2D)*40)
       RrCr = ColorRestauration * Rr
     
-      min1Cr = np.mean(RrCr) - np.std(RrCr) * dynamic
-      max1Cr = np.mean(RrCr) + np.std(RrCr) * dynamic
+      min1Cr = np.mean(RrCr) - np.std(RrCr) * self.dynamic
+      max1Cr = np.mean(RrCr) + np.std(RrCr) * self.dynamic
 
       RrCr = np.clip(255*(RrCr-min1Cr*np.ones(Shape2D))/(max1Cr-min1Cr), 0, 255)
 
