@@ -75,7 +75,7 @@ class MSRCR():
 
     precalculated_grids = None 
     while(precalculated_grids is None):
-      precalculated_grids = self.grids(key_, None)
+      precalculated_grids = self.grids.get(key_, None)
       if(precalculated_grids is None):
         self.__calc_grids(Shape2D)
 
