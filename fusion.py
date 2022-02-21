@@ -152,10 +152,11 @@ def enhance_outdated(image : np.ndarray, layers : int = 8) -> np.ndarray:
     return np.clip(pyramide_fusion([imgwb_gamma, imgwb_border], [NORM1, NORM2], layers = layers), 0, 255).astype(int)
 
 class FUSION():
-  def __init__(self):
-    pass
+  def __init__(self, layers = 8, dynamic = 2):
+    self.layers = layers 
+    self.dynamic = dynamic
   
-  def __call__(self, image: np.ndarray, layers: int = 8, dynamic: int = 2, bboxes = None, labels = None):
+  def __call__(self, image: np.ndarray, bboxes = None, labels = None):
     imgwb = white_balance(image.copy())
 
     imgwb_gamma = adjust_gamma(imgwb)
@@ -171,4 +172,4 @@ class FUSION():
     SAT2 = comp_saturation(imgwb_border)
 
     NORM1, NORM2 = normalize_maps([L1, SAL1, SAT1], [L2, SAL2, SAT2])
-    return np.clip(pyramide_fusion([imgwb_gamma, imgwb_border], [NORM1, NORM2], layers = layers, dynamic = dynamic), 0, 255).astype(int), bboxes, labels
+    return np.clip(pyramide_fusion([imgwb_gamma, imgwb_border], [NORM1, NORM2], layers = self.layers, dynamic = self.dynamic), 0, 255).astype(int), bboxes, labels
