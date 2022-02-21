@@ -13,7 +13,7 @@ class MSRCR():
     self.sigmas = sigmas 
     self.grids = {}
   
-  def __calc_grids(this_shape: tuple ):
+  def __calc_grids(self, this_shape: tuple ):
     assert len(this_shape) == 2
     [mx, my]=np.meshgrid(range(0, this_shape[1]), range(0, this_shape[0]))
     key_ = str(this_shape[0])+"-"+str(this_shape[1])
