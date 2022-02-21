@@ -55,8 +55,8 @@ def comp_saturation(img):
   out_img = np.zeros(img.shape)
   lum = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[...,2]
   #cv2_imshow(img[:,:,0]-lum)
-  sum = np.sum(np.array([np.square(img[:,:,elem] - lum) for elem in range(3)]), axis = 0)
-  res = np.array(np.sqrt(sum))
+  summ = np.sum(np.array([np.square(img[:,:,elem] - lum) for elem in range(3)]), axis = 0)
+  res = np.array(np.sqrt(summ/3))
   for _ in range(img.shape[2]):
     out_img[:,:,_] = res
 
@@ -155,7 +155,7 @@ class FUSION():
   def __init__(self):
     pass
   
-  def __call__(self, image: np.ndarray, layers: int = 8, dynamic: int = 2):
+  def __call__(self, image: np.ndarray, layers: int = 8, dynamic: int = 2, bboxes = None, labels = None):
     imgwb = white_balance(image.copy())
 
     imgwb_gamma = adjust_gamma(imgwb)
@@ -171,4 +171,4 @@ class FUSION():
     SAT2 = comp_saturation(imgwb_border)
 
     NORM1, NORM2 = normalize_maps([L1, SAL1, SAT1], [L2, SAL2, SAT2])
-    return np.clip(pyramide_fusion([imgwb_gamma, imgwb_border], [NORM1, NORM2], layers = layers, dynamic = dynamic), 0, 255).astype(int)
+    return np.clip(pyramide_fusion([imgwb_gamma, imgwb_border], [NORM1, NORM2], layers = layers, dynamic = dynamic), 0, 255).astype(int), bboxes, labels

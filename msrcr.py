@@ -62,15 +62,15 @@ class MSRCR():
     return result_image
 
 
-  def __call__(self, colour_image):
+  def __call__(self, image, bboxes = None, labels = None):
     #result_image = np.zeros(colour_image.shape)
-    result_imageCr = np.zeros(colour_image.shape)
-    colour_corr_matrix = np.zeros(colour_image.shape)
+    result_imageCr = np.zeros(image.shape)
+    colour_corr_matrix = np.zeros(image.shape)
 
-    Shape3D = colour_image.shape
+    Shape3D = image.shape
     Shape2D = Shape3D[0:2]
 
-    colour_corr_prematrix = np.clip(np.sum(colour_image, axis = 2),1 ,256)
+    colour_corr_prematrix = np.clip(np.sum(image, axis = 2),1 ,256)
     key_ = str(Shape2D[0])+"-"+str(Shape2D[1])
 
     precalculated_grids = None 
@@ -80,7 +80,7 @@ class MSRCR():
         self.__calc_grids(Shape2D)
 
     for col in [0,1,2]:
-      Image_channel = colour_image[:,:,col].copy()
+      Image_channel = image[:,:,col].copy()
 
       log_channel = np.log(Image_channel + np.ones(Shape2D))
       fourier_channel = np.fft.fft2(Image_channel)
@@ -99,4 +99,4 @@ class MSRCR():
       RrCr = np.clip(255*(RrCr-min1Cr*np.ones(Shape2D))/(max1Cr-min1Cr), 0, 255)
 
       result_imageCr[:,:,col] = RrCr.astype(int)
-    return result_imageCr
+    return result_imageCr, bboxes, labels
