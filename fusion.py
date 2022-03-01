@@ -21,13 +21,30 @@ def histogram_normalization(img):
     out_img[:,:,channel] = np.clip(255*(img[:,:,channel]-min_*np.ones(img_shape[0:2]))/(max_-min_), 0, 255)
   return out_img.astype(int)
 
-def white_balance(img):
+def white_balance2(img):
     result = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
     avg_a = np.average(result[:, :, 1])
     avg_b = np.average(result[:, :, 2])
     result[:, :, 1] = result[:, :, 1] - ((avg_a - 128) * (result[:, :, 0] / 255.0) * 1.1)
     result[:, :, 2] = result[:, :, 2] - ((avg_b - 128) * (result[:, :, 0] / 255.0) * 1.1)
     result = cv2.cvtColor(result, cv2.COLOR_LAB2BGR)
+    return result
+
+def white_balance(img):
+    max_val = np.max(img)
+    blue_channel = img[:,:,0]/max_val
+    green_channel = img[:,:,1]/max_val
+    red_channel = img[:,:,2]/max_val
+    Shape2D = green_channel.shape
+    avg_blue = np.average(blue_channel)
+    avg_green = np.average(green_channel)
+    avg_red = np.average(red_channel)
+    result = img.copy()
+
+    if(avg_green-avg_blue > 0.1):
+      result[:,:,0] = (blue_channel + ((avg_green - avg_blue) * (np.ones(Shape2D) - blue_channel) * green_channel))*max_val
+    result[:,:,2] = (red_channel + ((avg_green - avg_red) * (np.ones(Shape2D) - red_channel) * green_channel))*max_val
+    result = white_balance2(result)#.astype("int")
     return result
 
 def adjust_gamma(img, gamma = 0.5):
@@ -37,9 +54,9 @@ def adjust_gamma(img, gamma = 0.5):
   return cv2.LUT(img, table_gamma)
 
 def unsharp_masking(img):
-  gauss_img = cv2.GaussianBlur(img, (5,5), sigmaX = 9, sigmaY = 9)
-  out = img*0.95 + histogram_normalization(3*(img - gauss_img))*0.05
-  return out.astype("uint8")
+  gaussian_3 = cv2.GaussianBlur(img, (0, 0), 2.0)
+  unsharp_image = cv2.addWeighted(img, 2.0, gaussian_3, -1.0, 0)
+  return unsharp_image
   #return np.clip((img + 3*(img - gauss_img)), 0,255)
 
 def comp_saliency(img):
