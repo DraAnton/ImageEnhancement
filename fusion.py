@@ -115,6 +115,22 @@ def naive_fuision(wbImgs, weightMaps):
     sum.append(wm * wb)
   return np.sum(np.array(sum), axis = 0)
 
+def contrast_regional(img):
+  luminance_channel = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)[:,:,0]
+  luminance_channel_smoothed =  cv2.filter2D(luminance_channel, -1, bin_kernel)
+  diff = luminance_channel - luminance_channel_smoothed
+  result = np.zeros(img.shape)
+  for elem in range(3):
+    result[:,:,elem] = diff
+  return result
+
+def exposednes(img):
+  c_img = img/np.max(img)
+  lambd = 0.25
+  Shape3D = img.shape
+  #return np.square(img - np.ones(Shape3D)*0.5)
+  return np.exp(np.square(c_img - np.ones(Shape3D)*0.5)/(-2*(lambd**2))) * np.max(img)
+
 def pyramide_fusion(wbImgs, weightMaps, layers = 2, dynamic = 2): #wb is orignal images wm are weight maps calculated by the different algorithms
   all_out = []
   upsample_size = wbImgs[0].shape
@@ -182,11 +198,14 @@ class FUSION():
     L1 = cv2.Laplacian(imgwb_gamma, 8)
     L2 = cv2.Laplacian(imgwb_border, 8)
 
+    reg_contr1 = contrast_regional(imgwb_gamma)
+    reg_contr2 = contrast_regional(imgwb_border)
+
     SAL1 = comp_saliency(imgwb_gamma)
     SAL2 = comp_saliency(imgwb_border)
 
-    SAT1 = comp_saturation(imgwb_gamma)
-    SAT2 = comp_saturation(imgwb_border)
+    SAT1 = exposednes(imgwb_gamma)
+    SAT2 = exposednes(imgwb_border)
 
-    NORM1, NORM2 = normalize_maps([L1, SAL1, SAT1], [L2, SAL2, SAT2])
+    NORM1, NORM2 = normalize_maps([L1, SAL1, SAT1, reg_contr1], [L2, SAL2, SAT2, reg_contr2])
     return np.clip(pyramide_fusion([imgwb_gamma, imgwb_border], [NORM1, NORM2], layers = self.layers, dynamic = self.dynamic), 0, 255).astype(int), bboxes, labels
