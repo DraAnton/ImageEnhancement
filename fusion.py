@@ -115,6 +115,9 @@ def naive_fuision(wbImgs, weightMaps):
     sum.append(wm * wb)
   return np.sum(np.array(sum), axis = 0)
 
+
+bin_kernel = np.array([[1,4,6,4,1],[4,16,24,16,4], [6,24,36,24,6], [4,16,24,16,4],[1,4,6,4,1]])
+bin_kerlel = bin_kernel/np.sum(bin_kernel)
 def contrast_regional(img):
   luminance_channel = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)[:,:,0]
   luminance_channel_smoothed =  cv2.filter2D(luminance_channel, -1, bin_kernel)
