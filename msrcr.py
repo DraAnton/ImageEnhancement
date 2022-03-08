@@ -115,6 +115,8 @@ class MSRCR():
     colour_corr_matrix[:,:,0] = np.log(np.sum(image, axis = 2)+np.ones(Shape2D)*3)
     colour_corr_matrix[:,:,1] = colour_corr_matrix[:,:,0]
     colour_corr_matrix[:,:,2] = colour_corr_matrix[:,:,0]
+    key_ = str(Shape2D[0])+"-"+str(Shape2D[1])
+
 
     #precalculated_grids = None 
     #while(precalculated_grids is None):
