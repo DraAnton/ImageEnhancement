@@ -13,7 +13,7 @@ class MSRCR():
     self.sigmas = sigmas 
     self.grids = {}
     self.dynamic = dynamic
-    self.normalize_per_channel = normalie_per_channel
+    self.normalize_per_channel = normalize_per_channel
   
   def __calc_grids(self, this_shape: tuple ):
     assert len(this_shape) == 2
