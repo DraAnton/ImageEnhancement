@@ -106,13 +106,13 @@ class MSRCR():
 
   def __call__(self, image, bboxes = None, labels = None):
     #result_image = np.zeros(colour_image.shape)
-    Shape2D = colour_image.shape[0:2]
-    Shape3D = colour_image.shape
+    Shape2D = image.shape[0:2]
+    Shape3D = image.shape
 
     result_imageCr = np.zeros(Shape3D)
     colour_corr_matrix = np.zeros(Shape3D)
 
-    colour_corr_matrix[:,:,0] = np.log(np.sum(colour_image, axis = 2)+np.ones(Shape2D)*3)
+    colour_corr_matrix[:,:,0] = np.log(np.sum(image, axis = 2)+np.ones(Shape2D)*3)
     colour_corr_matrix[:,:,1] = colour_corr_matrix[:,:,0]
     colour_corr_matrix[:,:,2] = colour_corr_matrix[:,:,0]
 
@@ -125,7 +125,7 @@ class MSRCR():
     #colour_corr_prematrix = np.sum(colour_image, axis = 2)
 
     for col in [0,1,2]:
-      Image_channel = colour_image[:,:,col].copy()
+      Image_channel = image[:,:,col].copy()
 
       log_channel = np.log(Image_channel + np.ones(Shape2D))
       fourier_channel = np.fft.fft2(Image_channel)
@@ -135,7 +135,7 @@ class MSRCR():
         between1_=np.fft.ifft2(grid * fourier_channel).real 
         Rr += (log_channel-np.log(between1_))/len(precalculated_grids)
       result_imageCr[:,:,col] = Rr
-    RrCr = (np.log(64*(colour_image+np.ones(Shape3D)))- colour_corr_matrix) * result_imageCr
+    RrCr = (np.log(64*(image+np.ones(Shape3D)))- colour_corr_matrix) * result_imageCr
   
 
     ax = None if self.normalize_per_channel is False else (0,1)
