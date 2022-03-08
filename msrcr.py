@@ -9,10 +9,11 @@ def mult__(*args):
 
 
 class MSRCR():
-  def __init__(self, sigmas: tuple = (30, 60, 120), dynamic = 2):
+  def __init__(self, sigmas: tuple = (30, 60, 120), dynamic = 2, normalize_per_channel = False):
     self.sigmas = sigmas 
     self.grids = {}
     self.dynamic = dynamic
+    self.normalize_per_channel = normalie_per_channel
   
   def __calc_grids(self, this_shape: tuple ):
     assert len(this_shape) == 2
@@ -26,8 +27,9 @@ class MSRCR():
       Gauss_1_fourier = np.fft.fft2(Gauss_1, s = Gauss_1.shape)
       outlist.append(Gauss_1_fourier)
     self.grids[key_] = outlist
+    return outlist
 
-  def enhance_outdated(image : np.ndarray, sigmas : tuple = (25, 50, 150), gauss_dim : tuple = (9,9), normalization_multiplyer : float = 3) -> np.ndarray:
+  def enhance_outdated_1(image : np.ndarray, sigmas : tuple = (25, 50, 150), gauss_dim : tuple = (9,9), normalization_multiplyer : float = 3) -> np.ndarray:
     result_image = np.zeros(image.shape)
     colour_corr_matrix = np.zeros(image.shape)
 
@@ -63,7 +65,7 @@ class MSRCR():
     return result_image
 
 
-  def __call__(self, image, bboxes = None, labels = None):
+  def enhance_outdated_2(self, image, bboxes = None, labels = None):
     #result_image = np.zeros(colour_image.shape)
     result_imageCr = np.zeros(image.shape)
     colour_corr_matrix = np.zeros(image.shape)
@@ -101,3 +103,46 @@ class MSRCR():
 
       result_imageCr[:,:,col] = RrCr.astype(int)
     return result_imageCr, bboxes, labels
+
+  def __call__(self, image, bboxes = None, labels = None):
+    #result_image = np.zeros(colour_image.shape)
+    Shape2D = colour_image.shape[0:2]
+    Shape3D = colour_image.shape
+
+    result_imageCr = np.zeros(Shape3D)
+    colour_corr_matrix = np.zeros(Shape3D)
+
+    colour_corr_matrix[:,:,0] = np.log(np.sum(colour_image, axis = 2)+np.ones(Shape2D)*3)
+    colour_corr_matrix[:,:,1] = colour_corr_matrix[:,:,0]
+    colour_corr_matrix[:,:,2] = colour_corr_matrix[:,:,0]
+
+    #precalculated_grids = None 
+    #while(precalculated_grids is None):
+    precalculated_grids = self.grids.get(key_, None)
+    if(precalculated_grids is None):
+      precalculated_grids = self.__calc_grids(Shape2D)
+
+    #colour_corr_prematrix = np.sum(colour_image, axis = 2)
+
+    for col in [0,1,2]:
+      Image_channel = colour_image[:,:,col].copy()
+
+      log_channel = np.log(Image_channel + np.ones(Shape2D))
+      fourier_channel = np.fft.fft2(Image_channel)
+
+      Rr = 0
+      for grid in precalculated_grids:
+        between1_=np.fft.ifft2(grid * fourier_channel).real 
+        Rr += (log_channel-np.log(between1_))/len(precalculated_grids)
+      result_imageCr[:,:,col] = Rr
+    RrCr = (np.log(64*(colour_image+np.ones(Shape3D)))- colour_corr_matrix) * result_imageCr
+  
+
+    ax = None if self.normalize_per_channel is False else (0,1)
+    min1Cr = np.mean(RrCr, axis = ax) - np.std(RrCr, axis = ax) * self.dynamic
+    max1Cr = np.mean(RrCr, axis = ax) + np.std(RrCr, axis = ax) * self.dynamic
+    if(ax == (0,1)):
+      min1Cr = min1Cr[None,:][None,:]
+      max1Cr = max1Cr[None,:][None,:]
+
+    return np.clip(255*np.divide((RrCr-np.multiply(np.ones(Shape3D), min1Cr)),(max1Cr-min1Cr)), 0, 255), bboxes, labels
