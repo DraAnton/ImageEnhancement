@@ -28,8 +28,7 @@ class MSRCR():
 
       #Gauss_1 = (g1/np.sum(g1))
       Gauss_1 = 1/(2*math.pi*(elem**2)) * g1
-      Gauss_1 = (Gauss_1/np.sum(Gauss_1))
-
+      #Gauss_1 = (Gauss_1/np.sum(Gauss_1))
 
       Gauss_1_fourier = np.fft.fft2(Gauss_1, s = Gauss_1.shape)
       outlist.append(Gauss_1_fourier)
