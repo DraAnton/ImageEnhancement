@@ -54,7 +54,7 @@ def adjust_gamma(img, gamma = 0.5):
   return cv2.LUT(img, table_gamma)
 
 def unsharp_masking(img):
-  gaussian_3 = cv2.GaussianBlur(img, (0, 0), 2.0)
+  gaussian_3 = cv2.GaussianBlur(img, (5, 5), 2.0)
   unsharp_image = cv2.addWeighted(img, 2.0, gaussian_3, -1.0, 0)
   return unsharp_image
   #return np.clip((img + 3*(img - gauss_img)), 0,255)
@@ -63,9 +63,9 @@ def comp_saliency(img):
   #saliency = cv2.saliency.StaticSaliencyFineGrained_create()
   out_img = np.zeros(img.shape)
   (success, saliencyMap) = saliency.computeSaliency(img)
-  saliencyMap = (saliencyMap * 255).astype("uint8")
+  #saliencyMap = (saliencyMap * 255).astype("uint8")
   for _ in range(img.shape[2]):
-    out_img[:,:,_] = saliencyMap
+    out_img[:,:,_] = saliencyMap/3
   return out_img
 
 def comp_saturation(img):
@@ -75,8 +75,7 @@ def comp_saturation(img):
   summ = np.sum(np.array([np.square(img[:,:,elem] - lum) for elem in range(3)]), axis = 0)
   res = np.array(np.sqrt(summ/3))
   for _ in range(img.shape[2]):
-    out_img[:,:,_] = res
-
+    out_img[:,:,_] = res/3
   return out_img
 
 def gauss_pyramide(img, layers = 3):
@@ -88,7 +87,7 @@ def gauss_pyramide(img, layers = 3):
     #cv2_imshow(gaussian_layer)
   return gaussian
 
-def lap_pyramide(img, gaussian):
+def lap_pyramide2(img, gaussian):
   laplacian = []
   for i in range(len(gaussian)-1,0,-1):
     size = (gaussian[i - 1].shape[1], gaussian[i - 1].shape[0])
@@ -96,6 +95,17 @@ def lap_pyramide(img, gaussian):
     laplacian_layer = cv2.subtract(gaussian[i-1], gaussian_expanded)
     laplacian.append(laplacian_layer)
     #cv2_imshow(laplacian_layer)
+  return laplacian
+
+def lap_pyramide(img, gaussian):
+  laplacian = []
+  #all_ = gaussian
+  for i in range(0, len(gaussian)-1):
+    csize = (gaussian[i].shape[1], gaussian[i].shape[0])
+    #print(all_[i].shape,all_[i+1].shape)
+    upsampled_gaussian = cv2.pyrUp(gaussian[i+1], dstsize=csize)
+    laplacian.append(cv2.subtract(gaussian[i], upsampled_gaussian))
+  laplacian.append(gaussian[-1])
   return laplacian
 
 
@@ -134,7 +144,7 @@ def exposednes(img):
   #return np.square(img - np.ones(Shape3D)*0.5)
   return np.exp(np.square(c_img - np.ones(Shape3D)*0.5)/(-2*(lambd**2))) * np.max(img)
 
-def pyramide_fusion(wbImgs, weightMaps, layers = 2, dynamic = 2): #wb is orignal images wm are weight maps calculated by the different algorithms
+def pyramide_fusion2(wbImgs, weightMaps, layers = 2, dynamic = 2): #wb is orignal images wm are weight maps calculated by the different algorithms
   all_out = []
   upsample_size = wbImgs[0].shape
   for wb, wm in zip(wbImgs, weightMaps):
@@ -167,6 +177,28 @@ def pyramide_fusion(wbImgs, weightMaps, layers = 2, dynamic = 2): #wb is orignal
   max = np.mean(final_out) + np.std(final_out) * dynamic
 
   return np.clip((final_out-np.ones(final_out.shape)*min)/(max-min) * 230, 0, 255)
+
+def pyramide_fusion(wbImgs, weightMaps, layers = 2, dynamic = 3): #wb is orignal images wm are weight maps calculated by the different algorithms
+  #cv2_imshow(weightMaps[0])
+  #cv2_imshow(weightMaps[1])
+  all_out = []
+  upsample_size = wbImgs[0].shape
+  end_img = np.zeros(upsample_size)
+  counter = 0
+  weights = [2/3, 1/3]
+  for wb, wm in zip(wbImgs, weightMaps):
+    g_wb = gauss_pyramide(wb, layers = layers)
+    g_wm = gauss_pyramide(wm, layers = layers)
+
+    l_wb = lap_pyramide(wb, g_wb)
+    outimg = np.zeros(upsample_size)
+    for g, l in zip(g_wm, l_wb):
+      outimg += cv2.resize(g*l, (upsample_size[1], upsample_size[0]), interpolation = cv2.INTER_CUBIC)
+    end_img += outimg * weights[counter]
+    counter += 1
+  
+  final_out = end_img
+  return final_out
 
 def enhance_outdated(image : np.ndarray, layers : int = 8) -> np.ndarray:
 
@@ -201,14 +233,14 @@ class FUSION():
     L1 = cv2.Laplacian(imgwb_gamma, 8)
     L2 = cv2.Laplacian(imgwb_border, 8)
 
-    reg_contr1 = contrast_regional(imgwb_gamma)
-    reg_contr2 = contrast_regional(imgwb_border)
+    #reg_contr1 = contrast_regional(imgwb_gamma)
+    #reg_contr2 = contrast_regional(imgwb_border)
 
     SAL1 = comp_saliency(imgwb_gamma)
     SAL2 = comp_saliency(imgwb_border)
 
-    SAT1 = exposednes(imgwb_gamma)
-    SAT2 = exposednes(imgwb_border)
+    SAT1 = comp_saturation(imgwb_gamma)
+    SAT2 = comp_saturation(imgwb_border)
 
-    NORM1, NORM2 = normalize_maps([L1, SAL1, SAT1, reg_contr1], [L2, SAL2, SAT2, reg_contr2])
+    NORM1, NORM2 = normalize_maps([L1, SAL1, SAT1], [L2, SAL2, SAT2])
     return np.clip(pyramide_fusion([imgwb_gamma, imgwb_border], [NORM1, NORM2], layers = self.layers, dynamic = self.dynamic), 0, 255).astype(int), bboxes, labels

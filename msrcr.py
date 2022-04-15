@@ -1,5 +1,6 @@
 import cv2
 import numpy as np 
+import math
 
 def mult__(*args):
   out = 1
@@ -22,8 +23,14 @@ class MSRCR():
 
     outlist = []
     for elem in self.sigmas:
-      g1 = np.exp(-(mx^2+my^2)/(elem*elem))
-      Gauss_1 = (g1/np.sum(g1))
+      #g1 = np.exp(-(mx^2+my^2)/(elem*elem))
+      g1 = np.exp(-(mx**2+my**2)/(elem*elem))
+
+      #Gauss_1 = (g1/np.sum(g1))
+      Gauss_1 = 1/(2*math.pi*(elem**2)) * g1
+      Gauss_1 = (Gauss_1/np.sum(Gauss_1))
+
+
       Gauss_1_fourier = np.fft.fft2(Gauss_1, s = Gauss_1.shape)
       outlist.append(Gauss_1_fourier)
     self.grids[key_] = outlist
@@ -56,6 +63,7 @@ class MSRCR():
         
         ColorRestauration = np.log(np.divide(np.clip(single_channel, 1, 255), colour_corr_prematrix))
         intermediate = ColorRestauration * np.exp(intermediate)
+
 
         minInter = np.mean(intermediate) - np.std(intermediate) * normalization_multiplyer
         maxInter = np.mean(intermediate) + np.std(intermediate) * normalization_multiplyer
@@ -139,6 +147,8 @@ class MSRCR():
       result_imageCr[:,:,col] = Rr
     RrCr = (np.log(64*(image+np.ones(Shape3D)))- colour_corr_matrix) * result_imageCr
   
+    if(self.dynamic is None):
+      return np.clip(RrCr, 0, 255), bboxes, labels
 
     ax = None if self.normalize_per_channel is False else (0,1)
     min1Cr = np.mean(RrCr, axis = ax) - np.std(RrCr, axis = ax) * self.dynamic
