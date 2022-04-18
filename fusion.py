@@ -59,7 +59,7 @@ def unsharp_masking(img):
   return unsharp_image
   #return np.clip((img + 3*(img - gauss_img)), 0,255)
 
-def comp_saliency(img):
+def comp_saliency_old(img):
   #saliency = cv2.saliency.StaticSaliencyFineGrained_create()
   out_img = np.zeros(img.shape)
   (success, saliencyMap) = saliency.computeSaliency(img)
@@ -68,7 +68,18 @@ def comp_saliency(img):
     out_img[:,:,_] = saliencyMap/3
   return out_img
 
-def comp_saturation(img):
+saliency = cv2.saliency.StaticSaliencyFineGrained_create()
+def comp_saliency(img):
+  #saliency = cv2.saliency.MotionSaliencyBinWangApr2014_create()
+  out_img = np.zeros(img.shape)
+  (success, saliencyMap) = saliency.computeSaliency(img)
+  #saliencyMap = (saliencyMap * 255).astype("uint8")
+  #saliencyMap = saliencyMap/np.max(saliencyMap)
+  for i in range(3):
+    out_img[:,:,i] = saliencyMap
+  return out_img/6
+
+def comp_saturation2(img):
   out_img = np.zeros(img.shape)
   lum = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[...,2]
   #cv2_imshow(img[:,:,0]-lum)
@@ -76,6 +87,19 @@ def comp_saturation(img):
   res = np.array(np.sqrt(summ/3))
   for _ in range(img.shape[2]):
     out_img[:,:,_] = res/3
+  return out_img
+
+
+def comp_saturation(img):
+  out_img = np.zeros(img.shape)
+  lum = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[...,2]
+  #cv2_imshow(img[:,:,0]-lum)
+  sum = np.sum(np.array([np.square(img[:,:,elem] - lum) for elem in range(3)]), axis = 0)
+  res = np.array(np.sqrt(sum))
+  res = res/np.max(res)
+  for cha in range(img.shape[2]):
+    out_img[:,:,cha] = res
+
   return out_img
 
 def gauss_pyramide(img, layers = 3):
@@ -105,19 +129,21 @@ def lap_pyramide(img, gaussian):
     #print(all_[i].shape,all_[i+1].shape)
     upsampled_gaussian = cv2.pyrUp(gaussian[i+1], dstsize=csize)
     laplacian.append(cv2.subtract(gaussian[i], upsampled_gaussian))
-  laplacian.append(gaussian[-1])
+  laplacian.append(gaussian[-1] * 0.15)
   return laplacian
 
 
 def normalize_maps(*args):
+  theta = 0.001
   sum_all = [] 
   for elem in args:
-    sum_all.append(sum(elem) + 0.1*np.ones(elem[0].shape))
+    sum_all.append(sum(elem)) #  + 0.1*np.ones(elem[0].shape)
   norm_all = []
-  norm_val = np.sum(np.array(sum_all), axis = 0)
+  norm_val = np.sum(np.array([elem + (2*theta*np.ones(elem[0].shape)) for elem in sum_all]), axis = 0)
   for elem in sum_all:
-    norm_all.append(elem/norm_val)
+    norm_all.append((elem)/norm_val)
   return norm_all
+
 
 def naive_fuision(wbImgs, weightMaps):
   sum = []
@@ -193,9 +219,11 @@ def pyramide_fusion(wbImgs, weightMaps, layers = 2, dynamic = 3): #wb is orignal
     l_wb = lap_pyramide(wb, g_wb)
     outimg = np.zeros(upsample_size)
     for g, l in zip(g_wm, l_wb):
-      outimg += cv2.resize(g*l, (upsample_size[1], upsample_size[0]), interpolation = cv2.INTER_CUBIC)
-    end_img += outimg * weights[counter]
-    counter += 1
+      outimg += cv2.resize((0.5+g)*l, (upsample_size[1], upsample_size[0]), interpolation = cv2.INTER_CUBIC)
+    #outimg += g_wb[0]*0.3
+    #end_img += outimg + g_wb[0]*0.3
+    end_img += outimg
+    #counter += 1
   
   final_out = end_img
   return final_out
@@ -219,6 +247,12 @@ def enhance_outdated(image : np.ndarray, layers : int = 8) -> np.ndarray:
     NORM1, NORM2 = normalize_maps([L1, SAL1, SAT1], [L2, SAL2, SAT2])
     return np.clip(pyramide_fusion([imgwb_gamma, imgwb_border], [NORM1, NORM2], layers = layers), 0, 255).astype(int)
 
+def mylaplacian(img):
+    labimg = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    labimg[:,:,0] = np.abs(cv2.Laplacian(labimg[:,:,0], 8))
+    outimg = cv2.cvtColor(labimg, cv2.COLOR_LAB2BGR)
+    return outimg/np.max(outimg)
+
 class FUSION():
   def __init__(self, layers = 8, dynamic = 2):
     self.layers = layers 
@@ -230,8 +264,8 @@ class FUSION():
     imgwb_gamma = adjust_gamma(imgwb)
     imgwb_border = unsharp_masking(imgwb)
 
-    L1 = cv2.Laplacian(imgwb_gamma, 8)
-    L2 = cv2.Laplacian(imgwb_border, 8)
+    L1 = mylaplacian(imgwb_gamma)
+    L2 = mylaplacian(imgwb_border)
 
     #reg_contr1 = contrast_regional(imgwb_gamma)
     #reg_contr2 = contrast_regional(imgwb_border)
