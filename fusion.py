@@ -238,7 +238,7 @@ def pyramide_fusion(wbImgs, weightMaps, layers = 2, dynamic = 3): #wb is orignal
     outimg = np.zeros(upsample_size)
     curr_k = []
     for g, l in zip(g_wm, l_wb):
-      outimg = (g)*l
+      outimg = (g+0.5)*l
       curr_k.append(outimg)
     
     curr_k.append(g_wb[-1]*0.15)
