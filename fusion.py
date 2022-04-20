@@ -69,7 +69,7 @@ def comp_saliency_old(img):
   return out_img
 
 saliency = cv2.saliency.StaticSaliencyFineGrained_create()
-def comp_saliency(img):
+def comp_saliency2(img):
   #saliency = cv2.saliency.MotionSaliencyBinWangApr2014_create()
   out_img = np.zeros(img.shape)
   (success, saliencyMap) = saliency.computeSaliency(img)
@@ -78,6 +78,17 @@ def comp_saliency(img):
   for i in range(3):
     out_img[:,:,i] = saliencyMap
   return out_img/6
+
+bin_kernel = np.array([[1,4,6,4,1],[4,16,24,16,4], [6,24,36,24,6], [4,16,24,16,4],[1,4,6,4,1]])
+bin_kerlel = bin_kernel/np.sum(bin_kernel)
+def comp_saliency(img):
+  lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+  outimg = np.zeros(img.shape)
+  dist = np.linalg.norm(-1* cv2.filter2D(lab,-1, bin_kernel) + np.mean(lab, axis = (0,1)), axis = 2)
+  dist = dist/np.max(dist)
+  for chan in range(3):
+    outimg[:,:,chan] = dist
+  return outimg
 
 def comp_saturation2(img):
   out_img = np.zeros(img.shape)
@@ -89,8 +100,18 @@ def comp_saturation2(img):
     out_img[:,:,_] = res/3
   return out_img
 
-
 def comp_saturation(img):
+  out_img = np.zeros(img.shape)
+  lum = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)[...,0]
+  #cv2_imshow(img[:,:,0]-lum)
+  sum = np.sum(np.array([np.square(img[:,:,elem] - lum) for elem in range(3)]), axis = 0)
+  res = np.array(np.sqrt(sum))
+  res = res/np.max(res)
+  for cha in range(img.shape[2]):
+    out_img[:,:,cha] = res
+  return out_img
+
+def comp_saturation3(img):
   out_img = np.zeros(img.shape)
   lum = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[...,2]
   #cv2_imshow(img[:,:,0]-lum)
@@ -99,7 +120,6 @@ def comp_saturation(img):
   res = res/np.max(res)
   for cha in range(img.shape[2]):
     out_img[:,:,cha] = res
-
   return out_img
 
 def gauss_pyramide(img, layers = 3):
@@ -113,12 +133,12 @@ def gauss_pyramide(img, layers = 3):
 
 def lap_pyramide2(img, gaussian):
   laplacian = []
-  for i in range(len(gaussian)-1,0,-1):
-    size = (gaussian[i - 1].shape[1], gaussian[i - 1].shape[0])
-    gaussian_expanded = cv2.pyrUp(gaussian[i], dstsize=size)
-    laplacian_layer = cv2.subtract(gaussian[i-1], gaussian_expanded)
-    laplacian.append(laplacian_layer)
-    #cv2_imshow(laplacian_layer)
+  all_ = gaussian
+  for i in range(0, len(all_)-1):
+    csize = (all_[i].shape[1], all_[i].shape[0])
+    upsampled_gaussian = cv2.pyrUp(all_[i+1], dstsize=csize)
+    laplacian.append(cv2.subtract(all_[i], upsampled_gaussian))
+  #laplacian.append(gaussian[-1])
   return laplacian
 
 def lap_pyramide(img, gaussian):
@@ -205,28 +225,31 @@ def pyramide_fusion2(wbImgs, weightMaps, layers = 2, dynamic = 2): #wb is origna
   return np.clip((final_out-np.ones(final_out.shape)*min)/(max-min) * 230, 0, 255)
 
 def pyramide_fusion(wbImgs, weightMaps, layers = 2, dynamic = 3): #wb is orignal images wm are weight maps calculated by the different algorithms
-  #cv2_imshow(weightMaps[0])
-  #cv2_imshow(weightMaps[1])
   all_out = []
   upsample_size = wbImgs[0].shape
   end_img = np.zeros(upsample_size)
-  counter = 0
-  weights = [2/3, 1/3]
+  k_list = [] 
   for wb, wm in zip(wbImgs, weightMaps):
-    g_wb = gauss_pyramide(wb, layers = layers)
+    curr_out = []
+    g_wb = gauss_pyramide(histogram_normalization(wb).astype(np.uint8), layers = layers)
     g_wm = gauss_pyramide(wm, layers = layers)
 
-    l_wb = lap_pyramide(wb, g_wb)
+    l_wb = lap_pyramide2(wb, g_wb)
     outimg = np.zeros(upsample_size)
+    curr_k = []
     for g, l in zip(g_wm, l_wb):
-      outimg += cv2.resize((0.5+g)*l, (upsample_size[1], upsample_size[0]), interpolation = cv2.INTER_CUBIC)
-    #outimg += g_wb[0]*0.3
-    #end_img += outimg + g_wb[0]*0.3
-    end_img += outimg
-    #counter += 1
+      outimg = (g)*l
+      curr_k.append(outimg)
+    
+    curr_k.append(g_wb[-1]*0.15)
+    k_list.append(curr_k) 
   
-  final_out = end_img
-  return final_out
+  for a,b in zip(k_list[0], k_list[1]):
+    all_out.append(cv2.resize(a+b, (upsample_size[1], upsample_size[0]), interpolation = cv2.INTER_CUBIC))
+
+  final_out = sum(all_out)
+  return np.clip(final_out, 0, 255)
+
 
 def enhance_outdated(image : np.ndarray, layers : int = 8) -> np.ndarray:
 
