@@ -1,23 +1,11 @@
 # from https://github.com/xueleichen/PSNR-SSIM-UCIQE-UIQM-Python/blob/main/evaluate.py
 
 import numpy as np
-from skimage.measure import compare_psnr, compare_ssim
 import math
 import sys
 from skimage import io, color, filters
 import os
 import math
-
-def rmetrics(a,b):
-    
-    #pnsr
-    mse = np.mean((a-b)**2)
-    psnr = 10*math.log10(1/mse)
-
-    #ssim
-    ssim = compare_ssim(a,b,multichannel=True)
-
-    return psnr, ssim
 
 def nmetrics(a):
     rgb = a
